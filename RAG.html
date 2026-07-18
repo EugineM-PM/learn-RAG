@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>rag-simulator</title>
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=general-sans@500,600,700&display=swap" rel="stylesheet" />
+  <style>
+    :root, [data-theme="light"] {
+      --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+      --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+      --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+      --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+      --text-xl: clamp(1.5rem, 1.2rem + 1.25vw, 2rem);
+
+      --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem;
+      --space-5: 1.25rem; --space-6: 1.5rem; --space-8: 2rem; --space-10: 2.5rem;
+      --space-12: 3rem; --space-16: 4rem; --space-20: 5rem;
+
+      --color-bg: #f7f6f2;
+      --color-surface: #f9f8f5;
+      --color-surface-2: #ffffff;
+      --color-surface-offset: #efece6;
+      --color-surface-dynamic: #e6e1d8;
+      --color-border: #d8d3ca;
+      --color-divider: #e4e0d7;
+      --color-text: #232019;
+      --color-text-muted: #6f6b63;
+      --color-text-faint: #99958d;
+      --color-text-inverse: #faf9f6;
+      --color-primary: #01696f;
+      --color-primary-hover: #0c4e54;
+      --color-primary-highlight: #d8ecec;
+      --color-blue: #006494;
+      --color-gold: #b98200;
+      --color-success: #437a22;
+      --color-warning: #964219;
+      --color-error: #a12c7b;
+
+      --radius-sm: 0.5rem;
+      --radius-md: 0.75rem;
+      --radius-lg: 1rem;
+      --radius-xl: 1.25rem;
+      --radius-full: 9999px;
+
+      --shadow-sm: 0 1px 2px rgba(26, 24, 20, 0.06);
+      --shadow-md: 0 8px 24px rgba(26, 24, 20, 0.08);
+      --shadow-lg: 0 18px 48px rgba(26, 24, 20, 0.12);
+      --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+      --font-body: 'Satoshi', 'Inter', sans-serif;
+      --font-display: 'General Sans', 'Satoshi', sans-serif;
+    }
+
+    [data-theme="dark"] {
+      --color-bg: #151412;
+      --color-surface: #1b1917;
+      --color-surface-2: #22201d;
+      --color-surface-offset: #26231f;
+      --color-surface-dynamic: #302d28;
+      --color-border: #3b3833;
+      --color-divider: #2d2a26;
+      --color-text: #ebe8e1;
+      --color-text-muted: #b2aea7;
+      --color-text-faint: #89857e;
+      --color-text-inverse: #171614;
+      --color-primary: #5db0b7;
+      --color-primary-hover: #7ac5cb;
+      --color-primary-highlight: #243537;
+      --color-blue: #72a8cf;
+      --color-gold: #e0b043;
+      --color-success: #78b756;
+      --color-warning: #d08259;
+      --color-error: #d979b3;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.22);
+      --shadow-md: 0 8px 24px rgba(0,0,0,0.28);
+      --shadow-lg: 0 18px 48px rgba(0,0,0,0.35);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      html:not([data-theme]) {
+        --color-bg: #151412;
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: 1.6;
+      color: var(--color-text);
+      background:
+        radial-gradient(circle at top right, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 28%),
+        radial-gradient(circle at bottom left, color-mix(in srgb, var(--color-blue) 8%, transparent), transparent 25%),
+        var(--color-bg);
+    }
+    img, svg { display: block; max-width: 100%; }
+    button, input, textarea, select { font: inherit; }
+    button {
+      cursor: pointer;
+      border: none;
+      transition: transform var(--transition), background var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
+    }
+    button:hover { transform: translateY(-1px); }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 3px;
+    }
+    .app {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: var(--space-6);
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: var(--space-6);
+    }
+    .panel, .hero-card, .step-card, .playground, .trace-card, .output-card, .info-card {
+      background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+      backdrop-filter: blur(16px);
+      border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
+    }
+    .sidebar {
+      position: sticky;
+      top: var(--space-6);
+      align-self: start;
+      display: grid;
+      gap: var(--space-5);
+    }
+    .panel { padding: var(--space-5); }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+    .brand svg {
+      width: 42px;
+      height: 42px;
+      color: var(--color-primary);
+      flex: 0 0 auto;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--radius-full);
+      background: var(--color-primary-highlight);
+      color: var(--color-primary);
+      font-size: var(--text-xs);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { margin: 0; font-family: var(--font-display); line-height: 1.1; }
+    h1 { font-size: var(--text-xl); }
+    h2 { font-size: var(--text-lg); }
+    h3 { font-size: 1.05rem; }
+    p { margin: 0; color: var(--color-text-muted); }
+    .muted { color: var(--color-text-muted); }
+    .tiny { font-size: var(--text-xs); color: var(--color-text-faint); }
+    .theme-toggle, .ghost-btn, .control-btn, .chip-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      border-radius: var(--radius-full);
+      min-height: 44px;
+      padding: 0.75rem 1rem;
+      background: var(--color-surface-2);
+      color: var(--color-text);
+      border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+    }
+    .theme-toggle { width: 100%; }
+    .section-nav {
+      display: grid;
+      gap: var(--space-2);
+    }
+    .section-nav a {
+      text-decoration: none;
+      color: var(--color-text-muted);
+      padding: 0.85rem 0.95rem;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+    }
+    .section-nav a:hover, .section-nav a.active {
+      color: var(--color-text);
+      background: var(--color-surface-2);
+      border-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+    }
+    .legend {
+      display: grid;
+      gap: var(--space-3);
+      margin-top: var(--space-4);
+    }
+    .legend-item {
+      display: grid;
+      grid-template-columns: 12px 1fr;
+      gap: var(--space-3);
+      align-items: start;
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+    }
+    .dot { width: 12px; height: 12px; border-radius: 999px; margin-top: 0.35rem; }
+    .main {
+      display: grid;
+      gap: var(--space-6);
+      min-width: 0;
+    }
+    .hero-card {
+      padding: clamp(var(--space-5), 4vw, var(--space-8));
+      display: grid;
+      grid-template-columns: 1.2fr 0.9fr;
+      gap: var(--space-6);
+      align-items: start;
+    }
+    .hero-copy { display: grid; gap: var(--space-4); }
+    .hero-actions, .chip-row, .control-row, .play-controls, .query-pills {
+      display: flex;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+    .primary-btn {
+      min-height: 44px;
+      padding: 0.9rem 1.2rem;
+      border-radius: var(--radius-full);
+      background: var(--color-primary);
+      color: var(--color-text-inverse);
+      font-weight: 700;
+      box-shadow: var(--shadow-sm);
+    }
+    .primary-btn:hover { background: var(--color-primary-hover); }
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-3);
+    }
+    .stat {
+      padding: var(--space-4);
+      border-radius: var(--radius-lg);
+      background: var(--color-surface-2);
+      border: 1px solid color-mix(in srgb, var(--color-text) 9%, transparent);
+    }
+    .stat strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      color: var(--color-text);
+    }
+    .visual-flow {
+      display: grid;
+      gap: var(--space-3);
+    }
+    .flow-node {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: var(--space-3);
+      align-items: center;
+      padding: var(--space-4);
+      background: var(--color-surface-2);
+      border-radius: var(--radius-lg);
+      border: 1px solid color-mix(in srgb, var(--color-text) 9%, transparent);
+    }
+    .flow-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: var(--color-text-inverse);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .grid-two {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: var(--space-6);
+    }
+    .step-card, .playground, .trace-card, .output-card, .info-card { padding: var(--space-5); }
+    .step-list {
+      display: grid;
+      gap: var(--space-3);
+      margin-top: var(--space-4);
+    }
+    .step-item {
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      gap: var(--space-4);
+      align-items: center;
+      padding: var(--space-4);
+      border-radius: var(--radius-lg);
+      border: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+      background: var(--color-surface-2);
+      cursor: pointer;
+    }
+    .step-item.active {
+      border-color: color-mix(in srgb, var(--color-primary) 36%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 24%, transparent);
+      background: color-mix(in srgb, var(--color-primary-highlight) 54%, var(--color-surface-2));
+    }
+    .step-index {
+      width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+      background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-offset));
+      color: var(--color-primary); font-weight: 700; font-size: var(--text-sm);
+    }
+    .tag {
+      padding: 0.3rem 0.6rem;
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: 700;
+      background: var(--color-surface-offset);
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+    .detail-box {
+      margin-top: var(--space-4);
+      padding: var(--space-4);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface-2) 92%, transparent), color-mix(in srgb, var(--color-surface-offset) 90%, transparent));
+      border: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+      display: grid;
+      gap: var(--space-3);
+    }
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-3);
+    }
+    .mini-box {
+      padding: var(--space-3);
+      border-radius: var(--radius-md);
+      background: var(--color-surface-2);
+      border: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+      font-size: var(--text-sm);
+    }
+    textarea {
+      width: 100%;
+      min-height: 108px;
+      resize: vertical;
+      padding: 1rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid color-mix(in srgb, var(--color-text) 12%, transparent);
+      background: var(--color-surface-2);
+      color: var(--color-text);
+    }
+    .slider-wrap { display: grid; gap: var(--space-2); }
+    input[type="range"] { width: 100%; accent-color: var(--color-primary); }
+    .k-value {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 52px;
+      min-height: 44px;
+      padding: 0.5rem 0.8rem;
+      border-radius: var(--radius-full);
+      background: var(--color-surface-2);
+      border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+      font-weight: 700;
+    }
+    .chunk-list, .result-list, .trace-list {
+      display: grid;
+      gap: var(--space-3);
+      margin-top: var(--space-4);
+    }
+    .chunk, .result, .trace-line {
+      padding: var(--space-4);
+      border-radius: var(--radius-lg);
+      border: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+      background: var(--color-surface-2);
+    }
+    .chunk.active, .result.top {
+      border-color: color-mix(in srgb, var(--color-primary) 36%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent);
+      background: color-mix(in srgb, var(--color-primary-highlight) 48%, var(--color-surface-2));
+    }
+    .row-between {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-3);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .score {
+      font-size: var(--text-xs);
+      font-weight: 700;
+      color: var(--color-primary);
+      background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-offset));
+      padding: 0.35rem 0.6rem;
+      border-radius: var(--radius-full);
+    }
+    .pill {
+      padding: 0.5rem 0.85rem;
+      border-radius: var(--radius-full);
+      background: var(--color-surface-offset);
+      color: var(--color-text-muted);
+      border: 1px solid transparent;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .pill.active {
+      background: var(--color-primary-highlight);
+      color: var(--color-primary);
+      border-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
+    }
+    .answer {
+      padding: var(--space-4);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--color-primary-highlight) 45%, var(--color-surface-2)), var(--color-surface-2));
+      border: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+      color: var(--color-text);
+    }
+    .meter {
+      height: 10px;
+      width: 100%;
+      border-radius: var(--radius-full);
+      background: var(--color-surface-offset);
+      overflow: hidden;
+    }
+    .meter > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--color-primary), var(--color-blue));
+      width: 0%;
+      transition: width 500ms var(--transition);
+    }
+    .footer-note {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+    }
+    .hidden { display: none !important; }
+
+    @media (max-width: 1080px) {
+      .app, .grid-two, .hero-card { grid-template-columns: 1fr; }
+      .sidebar { position: static; }
+    }
+    @media (max-width: 640px) {
+      .app { padding: var(--space-4); gap: var(--space-4); }
+      .panel, .hero-card, .step-card, .playground, .trace-card, .output-card, .info-card { padding: var(--space-4); }
+      .mini-grid, .hero-stats { grid-template-columns: 1fr; }
+      .step-item { grid-template-columns: 38px 1fr; }
+      .step-item .tag { grid-column: 2; justify-self: start; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+      button:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <section class="panel">
+        <div class="brand">
+          <svg viewBox="0 0 64 64" aria-label="RAG simulator logo" fill="none">
+            <rect x="8" y="8" width="48" height="48" rx="16" stroke="currentColor" stroke-width="4"></rect>
+            <path d="M20 41V23h11c7 0 12 3 12 9 0 4.7-3.2 7.4-7.9 8.2L44 41" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M21 33h15" stroke="currentColor" stroke-width="4" stroke-linecap="round"></path>
+          </svg>
+          <div>
+            <div class="eyebrow">Interactive demo</div>
+            <h1>RAG simulator</h1>
+          </div>
+        </div>
+        <p>This single file shows the full Retrieval-Augmented Generation flow in a visual, hands-on way.</p>
+        <button class="theme-toggle" data-theme-toggle aria-label="Switch theme">
+          <span id="themeIcon">◐</span>
+          <span>Toggle theme</span>
+        </button>
+        <div class="legend">
+          <div class="legend-item"><span class="dot" style="background: var(--color-primary);"></span><span>Retrieval actions</span></div>
+          <div class="legend-item"><span class="dot" style="background: var(--color-blue);"></span><span>Embedding and ranking</span></div>
+          <div class="legend-item"><span class="dot" style="background: var(--color-gold);"></span><span>Prompt assembly</span></div>
+          <div class="legend-item"><span class="dot" style="background: var(--color-success);"></span><span>Grounded answer</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Jump to</h2>
+        <nav class="section-nav" aria-label="Section navigation">
+          <a href="#overview" class="active">Overview</a>
+          <a href="#steps">RAG steps</a>
+          <a href="#simulator">Simulator</a>
+          <a href="#outputs">Outputs</a>
+        </nav>
+      </section>
+
+      <section class="panel">
+        <h2>Use it</h2>
+        <p class="footer-note">Press Play demo to see one step at a time, or click any step to study it manually.</p>
+      </section>
+    </aside>
+
+    <main class="main">
+      <section class="hero-card" id="overview">
+        <div class="hero-copy">
+          <div class="eyebrow">What RAG does</div>
+          <h1>RAG lets an LLM answer with retrieved context instead of relying only on its built-in knowledge.</h1>
+          <p>In simple terms: you store documents, convert them into searchable chunks, retrieve the most relevant pieces for a user question, and then generate an answer grounded in those pieces.</p>
+          <div class="hero-actions">
+            <button class="primary-btn" id="playDemo">Play demo</button>
+            <button class="ghost-btn" id="resetDemo">Reset</button>
+          </div>
+          <div class="hero-stats">
+            <div class="stat"><span class="tiny">Pipeline stages</span><strong>6</strong><p>Ingest, chunk, embed, retrieve, augment, generate.</p></div>
+            <div class="stat"><span class="tiny">Knowledge chunks</span><strong id="docCount">5</strong><p>Editable mini knowledge base inside the demo.</p></div>
+            <div class="stat"><span class="tiny">Retrieval mode</span><strong>Top-k</strong><p>Ranked by token overlap to simulate relevance.</p></div>
+            <div class="stat"><span class="tiny">Answer style</span><strong>Grounded</strong><p>Response cites only the selected chunks in spirit.</p></div>
+          </div>
+        </div>
+        <div class="visual-flow" aria-label="RAG flow summary">
+          <div class="flow-node"><div class="flow-icon" style="background: var(--color-warning);">1</div><div><strong>Load source text</strong><p class="tiny">Policies, notes, PDFs, FAQs, manuals.</p></div></div>
+          <div class="flow-node"><div class="flow-icon" style="background: var(--color-blue);">2</div><div><strong>Chunk and embed</strong><p class="tiny">Split text into smaller pieces and convert each piece into a searchable representation.</p></div></div>
+          <div class="flow-node"><div class="flow-icon" style="background: var(--color-primary);">3</div><div><strong>Retrieve relevant chunks</strong><p class="tiny">Find the most related chunk set for the user question.</p></div></div>
+          <div class="flow-node"><div class="flow-icon" style="background: var(--color-gold);">4</div><div><strong>Build the final prompt</strong><p class="tiny">Question plus retrieved context are sent to the model.</p></div></div>
+          <div class="flow-node"><div class="flow-icon" style="background: var(--color-success);">5</div><div><strong>Generate grounded answer</strong><p class="tiny">The model answers from retrieved evidence.</p></div></div>
+        </div>
+      </section>
+
+      <section class="grid-two" id="steps">
+        <section class="step-card">
+          <div class="row-between">
+            <div>
+              <div class="eyebrow">Pipeline</div>
+              <h2>Core RAG steps</h2>
+            </div>
+            <span class="tag" id="currentStepTag">Step 1</span>
+          </div>
+          <div class="step-list" id="stepList"></div>
+        </section>
+
+        <section class="info-card">
+          <div class="eyebrow">Step details</div>
+          <h2 id="stepTitle">Ingestion</h2>
+          <div class="detail-box">
+            <p id="stepDescription"></p>
+            <div class="mini-grid">
+              <div class="mini-box"><strong>Input</strong><p id="stepInput" class="tiny"></p></div>
+              <div class="mini-box"><strong>Output</strong><p id="stepOutput" class="tiny"></p></div>
+              <div class="mini-box"><strong>Why it matters</strong><p id="stepWhy" class="tiny"></p></div>
+              <div class="mini-box"><strong>Risk if skipped</strong><p id="stepRisk" class="tiny"></p></div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="grid-two" id="simulator">
+        <section class="playground">
+          <div class="row-between">
+            <div>
+              <div class="eyebrow">Hands-on simulator</div>
+              <h2>Change the question and retrieval depth</h2>
+            </div>
+            <div class="k-value">k=<span id="kValue">2</span></div>
+          </div>
+          <p>Use the editable knowledge base below to see how a simple retrieval system picks chunks before answer generation.</p>
+
+          <div class="query-pills" id="queryPills"></div>
+
+          <div style="margin-top: var(--space-4); display:grid; gap: var(--space-4);">
+            <div>
+              <label for="queryInput"><strong>Question</strong></label>
+              <textarea id="queryInput">What are the early signs of dyslexia in a child?</textarea>
+            </div>
+            <div class="slider-wrap">
+              <div class="row-between">
+                <label for="kSlider"><strong>Retrieve top chunks</strong></label>
+                <span class="tiny">Higher k adds more context, but can also add noise.</span>
+              </div>
+              <input id="kSlider" type="range" min="1" max="5" value="2" />
+            </div>
+            <div class="play-controls">
+              <button class="primary-btn" id="runRag">Run retrieval</button>
+              <button class="control-btn" id="nextStep">Next step</button>
+              <button class="control-btn" id="shuffleQuery">Load another question</button>
+            </div>
+          </div>
+
+          <div class="chunk-list" id="chunkList"></div>
+        </section>
+
+        <section class="trace-card">
+          <div class="eyebrow">System trace</div>
+          <h2>What the simulator is doing</h2>
+          <div class="trace-list" id="traceList"></div>
+          <div class="detail-box">
+            <div class="row-between"><strong>Retrieval confidence</strong><span id="confidenceLabel" class="tag">Waiting</span></div>
+            <div class="meter"><span id="confidenceMeter"></span></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="grid-two" id="outputs">
+        <section class="output-card">
+          <div class="eyebrow">Retrieved context</div>
+          <h2>Ranked chunks</h2>
+          <div class="result-list" id="resultList"></div>
+        </section>
+
+        <section class="output-card">
+          <div class="eyebrow">Generation</div>
+          <h2>Prompt + grounded answer</h2>
+          <div class="detail-box">
+            <div>
+              <strong>Augmented prompt</strong>
+              <p id="promptPreview" class="tiny" style="margin-top: var(--space-2);"></p>
+            </div>
+            <div class="answer" id="answerBox">Run the simulator to generate an answer grounded in retrieved chunks.</div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const steps = [
+      {
+        title: '1. Ingestion',
+        label: 'Load docs',
+        kind: 'Input layer',
+        description: 'Bring source material into the system. This can be policies, FAQs, lesson notes, reports, or any text you want the model to use later.',
+        input: 'Raw documents or pasted text.',
+        output: 'A clean document set inside the knowledge base.',
+        why: 'Without documents, retrieval has nothing to search.',
+        risk: 'The model answers from general memory instead of your source material.'
+      },
+      {
+        title: '2. Chunking',
+        label: 'Split text',
+        kind: 'Preparation',
+        description: 'Large documents are split into smaller chunks so search can pull only the most relevant passage rather than an entire long file.',
+        input: 'Document text.',
+        output: 'Small passages with manageable size.',
+        why: 'Smaller chunks improve matching precision and reduce prompt waste.',
+        risk: 'Relevant details get buried inside a long document.'
+      },
+      {
+        title: '3. Embedding',
+        label: 'Map meaning',
+        kind: 'Indexing',
+        description: 'Each chunk is converted into a vector representation so semantically similar text can be found later.',
+        input: 'Chunks.',
+        output: 'Searchable vectors or numeric meaning maps.',
+        why: 'This enables similarity search beyond exact keyword matching.',
+        risk: 'The system can only do weak surface-level lookup.'
+      },
+      {
+        title: '4. Retrieval',
+        label: 'Find top-k',
+        kind: 'Search',
+        description: 'The user question is embedded too, then compared against chunk vectors to pull the most relevant chunks.',
+        input: 'User query plus indexed chunks.',
+        output: 'Ranked chunk list.',
+        why: 'This is the bridge between the question and the stored knowledge.',
+        risk: 'The final answer may use the wrong evidence.'
+      },
+      {
+        title: '5. Augmentation',
+        label: 'Build prompt',
+        kind: 'Prompting',
+        description: 'Retrieved chunks are inserted into a prompt template with instructions and the user question.',
+        input: 'Question plus top chunks.',
+        output: 'Grounded prompt for the model.',
+        why: 'The model now sees the relevant evidence at answer time.',
+        risk: 'Important context never reaches the model.'
+      },
+      {
+        title: '6. Generation',
+        label: 'Answer',
+        kind: 'Output',
+        description: 'The LLM produces a response using the retrieved context as evidence, ideally staying faithful to that context.',
+        input: 'Augmented prompt.',
+        output: 'Grounded answer.',
+        why: 'This is where retrieval becomes useful to the end user.',
+        risk: 'Ungrounded output or hallucination can still appear if the prompt is poor.'
+      }
+    ];
+
+    const knowledgeBase = [
+      { id: 'A', title: 'Dyslexia early signs', text: 'Early signs of dyslexia can include difficulty recognizing rhyming patterns, trouble connecting letters with sounds, slow word decoding, avoiding reading, and confusion with sequencing tasks.' },
+      { id: 'B', title: 'Dysgraphia signs', text: 'Children with dysgraphia may struggle with handwriting, spacing, pencil grip, letter formation, written expression, and fatigue during writing tasks.' },
+      { id: 'C', title: 'ADHD classroom supports', text: 'Helpful supports for ADHD include movement breaks, short instructions, visual schedules, preferential seating, and chunked tasks with immediate feedback.' },
+      { id: 'D', title: 'RAG concept', text: 'Retrieval-augmented generation combines search with language generation by retrieving relevant chunks from a knowledge base and placing them into the model prompt before the answer is created.' },
+      { id: 'E', title: 'Inclusive screening note', text: 'Screening should identify functional concerns early, but it should not replace a full assessment. Teachers and parents should observe patterns across settings and over time.' }
+    ];
+
+    const sampleQueries = [
+      'What are the early signs of dyslexia in a child?',
+      'How does RAG work step by step?',
+      'What classroom supports help a child with ADHD?',
+      'Does screening replace a full assessment?'
+    ];
+
+    let currentStep = 0;
+    let playTimer = null;
+
+    const stepList = document.getElementById('stepList');
+    const stepTitle = document.getElementById('stepTitle');
+    const stepDescription = document.getElementById('stepDescription');
+    const stepInput = document.getElementById('stepInput');
+    const stepOutput = document.getElementById('stepOutput');
+    const stepWhy = document.getElementById('stepWhy');
+    const stepRisk = document.getElementById('stepRisk');
+    const currentStepTag = document.getElementById('currentStepTag');
+    const queryInput = document.getElementById('queryInput');
+    const kSlider = document.getElementById('kSlider');
+    const kValue = document.getElementById('kValue');
+    const chunkList = document.getElementById('chunkList');
+    const resultList = document.getElementById('resultList');
+    const traceList = document.getElementById('traceList');
+    const promptPreview = document.getElementById('promptPreview');
+    const answerBox = document.getElementById('answerBox');
+    const confidenceMeter = document.getElementById('confidenceMeter');
+    const confidenceLabel = document.getElementById('confidenceLabel');
+    const queryPills = document.getElementById('queryPills');
+    const docCount = document.getElementById('docCount');
+    const navLinks = document.querySelectorAll('.section-nav a');
+
+    docCount.textContent = knowledgeBase.length;
+
+    function renderSteps() {
+      stepList.innerHTML = '';
+      steps.forEach((step, index) => {
+        const item = document.createElement('button');
+        item.className = 'step-item' + (index === currentStep ? ' active' : '');
+        item.type = 'button';
+        item.innerHTML = `
+          <span class="step-index">${index + 1}</span>
+          <span>
+            <strong>${step.label}</strong>
+            <p class="tiny">${step.description}</p>
+          </span>
+          <span class="tag">${step.kind}</span>
+        `;
+        item.addEventListener('click', () => setStep(index));
+        stepList.appendChild(item);
+      });
+      const step = steps[currentStep];
+      stepTitle.textContent = step.title;
+      stepDescription.textContent = step.description;
+      stepInput.textContent = step.input;
+      stepOutput.textContent = step.output;
+      stepWhy.textContent = step.why;
+      stepRisk.textContent = step.risk;
+      currentStepTag.textContent = `Step ${currentStep + 1}`;
+    }
+
+    function tokenize(text) {
+      return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+    }
+
+    function scoreChunk(query, chunkText) {
+      const q = tokenize(query);
+      const c = tokenize(chunkText);
+      const uniqueQ = [...new Set(q)];
+      let score = 0;
+      uniqueQ.forEach(token => {
+        if (c.includes(token)) score += 2;
+        if (chunkText.toLowerCase().includes(token)) score += 0.5;
+      });
+      const semanticHints = {
+        dyslexia: ['reading', 'letters', 'sounds', 'decoding', 'rhyming'],
+        rag: ['retrieval', 'generation', 'prompt', 'chunks', 'knowledge'],
+        screening: ['assessment', 'observe', 'patterns', 'settings'],
+        adhd: ['movement', 'visual', 'feedback', 'seating']
+      };
+      Object.entries(semanticHints).forEach(([key, hints]) => {
+        if (q.includes(key)) {
+          hints.forEach(h => { if (c.includes(h)) score += 1; });
+        }
+      });
+      return Number(score.toFixed(1));
+    }
+
+    function retrieve(query, k) {
+      return knowledgeBase
+        .map(chunk => ({ ...chunk, score: scoreChunk(query, chunk.text) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, k);
+    }
+
+    function buildAnswer(query, ranked) {
+      if (!ranked.length || ranked[0].score === 0) {
+        return 'No strong chunk was retrieved, so the system should ask for a clearer question or search a better knowledge base before answering.';
+      }
+      const top = ranked[0];
+      const support = ranked.slice(1).map(item => item.title).join(', ');
+      return `Based on the retrieved context, the strongest answer comes from “${top.title}”. ${top.text}${support ? ` Supporting context also came from ${support}.` : ''} This is what makes RAG useful: the answer is shaped by retrieved evidence, not just model memory.`;
+    }
+
+    function buildPrompt(query, ranked) {
+      const context = ranked.map((item, index) => `Chunk ${index + 1} (${item.title}): ${item.text}`).join(' | ');
+      return `System: Answer only from the provided context. User question: ${query} Context: ${context}`;
+    }
+
+    function renderChunks(results) {
+      chunkList.innerHTML = '<h3>Knowledge base</h3>';
+      knowledgeBase.forEach(chunk => {
+        const active = results.some(r => r.id === chunk.id);
+        const score = results.find(r => r.id === chunk.id)?.score;
+        const div = document.createElement('div');
+        div.className = 'chunk' + (active ? ' active' : '');
+        div.innerHTML = `
+          <div class="row-between">
+            <strong>${chunk.id}. ${chunk.title}</strong>
+            <span class="score">${active ? `score ${score}` : 'not selected'}</span>
+          </div>
+          <p class="tiny" style="margin-top: var(--space-2);">${chunk.text}</p>
+        `;
+        chunkList.appendChild(div);
+      });
+    }
+
+    function renderResults(results) {
+      resultList.innerHTML = '';
+      results.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.className = 'result' + (idx === 0 ? ' top' : '');
+        div.innerHTML = `
+          <div class="row-between">
+            <strong>#${idx + 1} ${item.title}</strong>
+            <span class="score">relevance ${item.score}</span>
+          </div>
+          <p class="tiny" style="margin-top: var(--space-2);">${item.text}</p>
+        `;
+        resultList.appendChild(div);
+      });
+      if (!results.length) {
+        resultList.innerHTML = '<div class="result"><p class="tiny">No results yet.</p></div>';
+      }
+    }
+
+    function renderTrace(query, results, k) {
+      const top = results[0];
+      const lines = [
+        '1. Query received and normalized.',
+        '2. Query compared against chunk content using a simple overlap score.',
+        `3. Top-${k} chunks selected for augmentation.`,
+        top ? `4. Highest scoring chunk: ${top.title}.` : '4. No matching chunk identified yet.',
+        '5. Prompt assembled with selected context.',
+        '6. Grounded answer drafted from retrieved evidence.'
+      ];
+      traceList.innerHTML = '';
+      lines.forEach(line => {
+        const div = document.createElement('div');
+        div.className = 'trace-line';
+        div.textContent = line;
+        traceList.appendChild(div);
+      });
+      const confidence = top ? Math.min(100, Math.round((top.score / 10) * 100)) : 0;
+      confidenceMeter.style.width = confidence + '%';
+      confidenceLabel.textContent = confidence ? `${confidence}% match` : 'Waiting';
+      promptPreview.textContent = buildPrompt(query, results);
+      answerBox.textContent = buildAnswer(query, results);
+    }
+
+    function runSimulation() {
+      const query = queryInput.value.trim();
+      const k = Number(kSlider.value);
+      const results = retrieve(query, k);
+      renderChunks(results);
+      renderResults(results);
+      renderTrace(query, results, k);
+    }
+
+    function setStep(index) {
+      currentStep = index;
+      renderSteps();
+    }
+
+    function nextStep() {
+      currentStep = (currentStep + 1) % steps.length;
+      renderSteps();
+    }
+
+    function playDemo() {
+      clearInterval(playTimer);
+      currentStep = 0;
+      renderSteps();
+      runSimulation();
+      playTimer = setInterval(() => {
+        if (currentStep >= steps.length - 1) {
+          clearInterval(playTimer);
+          return;
+        }
+        currentStep += 1;
+        renderSteps();
+      }, 1100);
+    }
+
+    function resetDemo() {
+      clearInterval(playTimer);
+      currentStep = 0;
+      queryInput.value = sampleQueries[0];
+      kSlider.value = 2;
+      kValue.textContent = '2';
+      renderSteps();
+      runSimulation();
+    }
+
+    function renderQueryPills() {
+      queryPills.innerHTML = '';
+      sampleQueries.forEach(q => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pill' + (q === queryInput.value ? ' active' : '');
+        btn.textContent = q;
+        btn.addEventListener('click', () => {
+          queryInput.value = q;
+          renderQueryPills();
+          runSimulation();
+        });
+        queryPills.appendChild(btn);
+      });
+    }
+
+    function randomQuery() {
+      const current = queryInput.value;
+      const candidates = sampleQueries.filter(q => q !== current);
+      queryInput.value = candidates[Math.floor(Math.random() * candidates.length)] || sampleQueries[0];
+      renderQueryPills();
+      runSimulation();
+    }
+
+    document.getElementById('runRag').addEventListener('click', () => {
+      runSimulation();
+      setStep(3);
+    });
+    document.getElementById('nextStep').addEventListener('click', nextStep);
+    document.getElementById('shuffleQuery').addEventListener('click', randomQuery);
+    document.getElementById('playDemo').addEventListener('click', playDemo);
+    document.getElementById('resetDemo').addEventListener('click', resetDemo);
+    queryInput.addEventListener('input', () => {
+      renderQueryPills();
+      runSimulation();
+    });
+    kSlider.addEventListener('input', e => {
+      kValue.textContent = e.target.value;
+      runSimulation();
+    });
+
+    const themeToggle = document.querySelector('[data-theme-toggle]');
+    const themeIcon = document.getElementById('themeIcon');
+    let currentTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    function syncThemeIcon() {
+      themeIcon.textContent = currentTheme === 'dark' ? '☀' : '◐';
+      themeToggle.setAttribute('aria-label', `Switch to ${currentTheme === 'dark' ? 'light' : 'dark'} mode`);
+    }
+    syncThemeIcon();
+    themeToggle.addEventListener('click', () => {
+      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', currentTheme);
+      syncThemeIcon();
+    });
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          navLinks.forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`));
+        }
+      });
+    }, { rootMargin: '-35% 0px -55% 0px', threshold: 0.01 });
+
+    ['overview', 'steps', 'simulator', 'outputs'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    renderSteps();
+    renderQueryPills();
+    runSimulation();
+  </script>
+</body>
+</html>
